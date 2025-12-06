@@ -4,9 +4,6 @@ set +a
 
 inotifywait -m -e modify "$log_path" | while read _; do
     row=`tail -n 1 "$log_path"`
-    if [[ "$row" != *"Got character"* ]]; then
-        continue
-    fi
     json_payload=$(cat <<EOF
 {
   "parent": { "database_id": "$notion_database_id" },
