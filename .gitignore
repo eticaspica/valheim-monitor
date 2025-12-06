@@ -1,3 +1,5 @@
 .env
 *.log
 *.test.sh
+*.pid
+log/*
