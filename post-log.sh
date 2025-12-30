@@ -4,7 +4,7 @@ set -a
 source .env
 set +a
 
-journalctl -u valheim.service -f --since now --no-pager | 
+journalctl -u $valheimd -f --since now --no-pager | 
 while read -r line; do
 
     case "$line" in

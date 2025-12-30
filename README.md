@@ -1,24 +1,25 @@
-# loginlog
+# valheim-monitor
 
-Valheim サーバーのログファイルを監視し、Notion データベースへ新規行を保存するための簡易スクリプト群です。`inotifywait` でログファイルの変更を検知し、`curl` で Notion API に行データを送信します。
+Valheim サーバーログを Notion データベースへ送るためのシェルスクリプト集です。`curl` で Notion API にページを追加し、ログ行をそのままタイトルプロパティ（`raw`）に保存します。
 
-## 同梱スクリプト
-- **loginlog.sh**: ログに「Got character」を含む行だけを Notion に送信します。
-- **alllog.sh**: ログの全ての行を Notion に送信します。
-- **reboot.sh**: `valheim.log` をバックアップした後、`loginlog.sh` をバックグラウンドで起動します。
+## 構成
+- **post-log.sh**: `journalctl -u $valheimd -f` を読み、以下の文字列を含む行だけを送信します。
+  - Got character ZDOID / Destroying abandoned non persistent / Game server connected / OnApplicationQuit / Connections
+- **notion/make-payload.sh**: Notion API へ送る JSON ペイロードを生成します。
+- **notion/post-page.sh**: Notion API にページを作成します。
 
 ## 必要要件
 - Bash
-- [inotify-tools](https://github.com/inotify-tools/inotify-tools)（`inotifywait` を利用）
 - `curl`
-- Notion の内部統合トークンとデータベース ID
+- Notion 内部統合トークンとデータベース ID（タイトルプロパティ名が `raw` のもの）
+- `post-log.sh`: systemd 環境の `journalctl`
 
 ## 環境変数
-`.env` に以下の変数を設定してからスクリプトを実行してください。
+`.env` に以下を設定してからスクリプトを実行してください。
 
 ```env
-# 監視するログファイルへの絶対パス
-log_path=/path/to/valheim.log
+# systemd サービス名
+valheimd=valheim.service
 
 # Notion 内部統合トークンとデータベース ID
 notion_integration_token=secret_xxx
@@ -26,17 +27,11 @@ notion_database_id=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
 ## 使い方
-1. 依存コマンドをインストールします（例: `apt install inotify-tools curl`）。
-2. 上記の内容で `.env` を作成します。
-3. 監視したいスクリプトを実行します。
-   - 特定のログ行のみを送る場合: `./loginlog.sh`
-   - すべてのログ行を送る場合: `./alllog.sh`
-
-## `reboot.sh` について
-- `valheim.log` を `./log/loginlog.log.<番号>` へバックアップします（`log` ディレクトリが必要です）。
-- `loginlog.sh` を `nohup` でバックグラウンド起動し、標準出力を `loginlog.log` に書き出します。
-- プロセス ID は `loginlog.pid` に保存されます。
+1) 上記の内容で `.env` を作成します。  
+2) 目的に応じて以下を実行します。
+   - サーバーの journal から特定の行だけ送りたい: `./post-log.sh`
+     - サービス名が異なる場合は `.env` の `valheimd` を合わせてください。
 
 ## 注意事項
-- Notion へのリクエストはデータベースの「raw」タイトルプロパティへログ行をそのまま保存します。必要に応じて Notion 側でカラムを追加・編集してください。
-- ログファイルにアクセスできる権限と、データベースへの書き込み権限を持つトークンを使用してください。
+- 送信されるログ行は Notion のタイトルプロパティ `raw` にそのまま保存されます。必要に応じて Notion 側でカラムを追加・編集してください。
+- ログファイルへの読み取り権限と、Notion データベースへの書き込み権限を持つトークンを使用してください。
