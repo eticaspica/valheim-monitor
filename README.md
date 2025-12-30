@@ -1,21 +1,31 @@
 # valheim-monitor
 
-Valheim サーバーログを Notion データベースへ送るためのシェルスクリプト集です。`curl` で Notion API にページを追加し、ログ行をそのままタイトルプロパティ（`raw`）に保存します。
+Valheim サーバーログを監視し、ログイン/ログアウトなどのイベントを Notion データベースへ送るシェルスクリプト集です。`curl` で Notion API にページを追加します。
 
 ## 構成
-- **post-log.sh**: `journalctl -u $valheimd -f` を読み、以下の文字列を含む行だけを送信します。
-  - Got character ZDOID / Destroying abandoned non persistent / Game server connected / OnApplicationQuit / Connections
-- **notion/make-payload.sh**: Notion API へ送る JSON ペイロードを生成します。
+- **post-log.sh**: `journalctl -u $valheimd -f` を監視し、対象ログを Notion へ送信します。
+  - ログイン: `"Got character ZDOID"`（ZDOID とプレイヤー名を抽出し `viking/` にキャッシュ）
+  - ログアウト: `"Destroying abandoned non persistent"`（保存済み ZDOID からプレイヤー名を取得）
+  - サーバー起動/停止: `"Game server connected"` / `"OnApplicationQuit"`
+  - 接続数: `"Connections"`
+- **notion/inout-payload.sh**: Notion に送る JSON ペイロードを生成します（イベント種別やプレイヤー名を含む）。
 - **notion/post-page.sh**: Notion API にページを作成します。
+
+## Notion 側のプロパティ
+データベースには以下のプロパティが必要です（名前を合わせてください）。
+- `title`（タイトル）: 例 `player is login`
+- `type`（セレクト）
+- `viking`（リッチテキスト）
+- `stdout`（リッチテキスト）
 
 ## 必要要件
 - Bash
 - `curl`
-- Notion 内部統合トークンとデータベース ID（タイトルプロパティ名が `raw` のもの）
-- `post-log.sh`: systemd 環境の `journalctl`
+- systemd 環境の `journalctl`
+- Notion 内部統合トークンとデータベース ID
 
-## 環境変数
-`.env` に以下を設定してからスクリプトを実行してください。
+## 環境変数（.env）
+`.env` をリポジトリ直下に配置します。
 
 ```env
 # systemd サービス名
@@ -27,11 +37,11 @@ notion_database_id=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
 ## 使い方
-1) 上記の内容で `.env` を作成します。  
-2) 目的に応じて以下を実行します。
-   - サーバーの journal から特定の行だけ送りたい: `./post-log.sh`
-     - サービス名が異なる場合は `.env` の `valheimd` を合わせてください。
+1) `.env` を作成し、`viking/` ディレクトリを作成します（ZDOID とプレイヤー名の対応を一時保存します）。  
+2) サービス名が異なる場合は `.env` の `valheimd` を変更します。  
+3) `journalctl` を読めるユーザーで `./post-log.sh` を実行します。
 
 ## 注意事項
-- 送信されるログ行は Notion のタイトルプロパティ `raw` にそのまま保存されます。必要に応じて Notion 側でカラムを追加・編集してください。
-- ログファイルへの読み取り権限と、Notion データベースへの書き込み権限を持つトークンを使用してください。
+- `post-log.sh` は現在の作業ディレクトリに `viking/` を作り、一時ファイルを置きます。適切なパーミッションで運用してください。
+- `.env` には秘密情報が含まれるため権限を制限してください（例: `chmod 600 .env`）。
+- ログ読み取り権限と Notion データベースへの書き込み権限を持つトークンを使用してください。
