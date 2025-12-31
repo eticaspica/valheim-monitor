@@ -1,0 +1,27 @@
+{
+    "icon": {
+        "emoji": "💤"
+    },
+    "properties": {
+        "viking": {
+            "title": [
+                {
+                    "text": {
+                        "content": "$viking"
+                    }
+                }
+            ]
+        },
+        "login": {
+            "date": {
+                "start": "$start_dtz",
+                "end": "$end_dtz"
+            }
+        },
+        "status": {
+            "select": {
+                "name": "offline"
+            }
+        }
+    }
+}

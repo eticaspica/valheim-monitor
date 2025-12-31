@@ -10,13 +10,13 @@ Valheim サーバーログを監視し、ログイン/ログアウトなどの�
   - 接続数: `"Connections"`
 - **notion/inout-payload.sh**: Notion に送る JSON ペイロードを生成します（イベント種別やプレイヤー名を含む）。
 - **notion/post-page.sh**: Notion API にページを作成します。
+  - ペイロードの雛形は `notion/login.json` / `notion/logout.json` を `envsubst` で埋めています。
 
 ## Notion 側のプロパティ
 データベースには以下のプロパティが必要です（名前を合わせてください）。
-- `title`（タイトル）: 例 `player is login`
-- `type`（セレクト）
-- `viking`（リッチテキスト）
-- `stdout`（リッチテキスト）
+- `viking`（タイトル）: プレイヤー名を保存
+- `login`（日付）: ログイン時刻（開始）、ログアウト時刻（終了）を保存
+- `status`（セレクト or ステータス）: `online` / `offline`
 
 ## 必要要件
 - Bash

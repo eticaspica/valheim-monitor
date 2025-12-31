@@ -4,51 +4,74 @@ set -a
 source .env
 set +a
 
-journalctl -u $valheimd -f --since now --no-pager -o cat | 
-while read -r line; do
+reg_login_ZDOID='s/.*: ([0-9]+):[0-9]+/\1/'
+reg_logout_ZDOID='s/.*zdo ([0-9]+):[0-9]+.*/\1/'
+reg_viking='s/.*from ([^ ]+).*/\1/'
+reg_conn='s/.*Connections ([0-9]+).*/\1/'
 
+journalctl -f --no-pager \
+    -u $valheimd \
+    -o cat \
+    --since now |
+while read -r line; do
     case "$line" in
         *"Got character ZDOID"*)
-            type=login
-            ZDOID=$(echo "$line" | sed -E 's/.*: ([0-9]+):[0-9]+/\1/')
-            viking=$(echo "$line" | sed -E 's/.*from ([^ ]+).*/\1/')
-            echo "$viking" > viking/"$ZDOID"
+            method="POST"
+            dtz=$(date -Iseconds)
+            ZDOID=$(echo "$line" | sed -E "$reg_login_ZDOID")
+            viking=$(echo "$line" | sed -E "$reg_viking")
 
-            json_payload=$(./notion/inout-payload.sh \
-                "$notion_database_id" \
-                "$line" \
-                "$type" \
-                "$ZDOID" \
-                "$viking")
+            json_payload=$(
+                database_id="$notion_database_id" \
+                dtz="$dtz" \
+                viking="$viking" \
+                envsubst < notion/login.json
+            )
 
-            ./notion/post-page.sh "$notion_integration_token" "$json_payload"
+            page_id=$(
+                ./notion/post-page.sh \
+                    "$method" \
+                    "$notion_integration_token" \
+                    "$json_payload" |
+                jq -r '.id'
+            )
+
+            jq  -nc \
+                --arg viking "$viking" \
+                --arg page_id "$page_id" \
+                --arg dtz "$dtz" \
+                '{"viking": $viking, "page_id": $page_id, "dtz": $dtz}' > viking/"$ZDOID"
             ;;
         *"Destroying abandoned non persistent"*)
-            type=logout
-            ZDOID=$(echo "$line" | sed -E 's/.*owner ([0-9]+)/\1/')
-            viking=$(cat viking/"$ZDOID")
-
-            json_payload=$(./notion/inout-payload.sh \
-                "$notion_database_id" \
-                "$line" \
-                "$type" \
-                "$ZDOID" \
-                "$viking")
-            rm viking/"$ZDOID"
-
+            ZDOID=$(echo "$line" | sed -E "$reg_logout_ZDOID")
             if [ -f viking/"$ZDOID" ]; then
-                ./notion/post-page.sh "$notion_integration_token" "$json_payload"
+                method="PATCH"
+                end_dtz=$(date -Iseconds)
+                viking=$(jq -r '.viking' viking/"$ZDOID")
+                page_id=$(jq -r '.page_id' viking/"$ZDOID")
+                start_dtz=$(jq -r '.dtz' viking/"$ZDOID")
+
+                json_payload=$(
+                    database_id="$notion_database_id" \
+                    start_dtz="$start_dtz" \
+                    end_dtz="$end_dtz" \
+                    viking="$viking" \
+                    envsubst < notion/logout.json
+                )
+
+                ./notion/post-page.sh \
+                    "$method" \
+                    "$notion_integration_token" \
+                    "$json_payload" \
+                    "$page_id"
+                rm viking/"$ZDOID"
             fi
             ;;
         *"Game server connected"*)
-            type=server_up
             ;;
         *"OnApplicationQuit"*)
-            type=server_down
             ;;
         *"Connections"*)
-            type=active_player
-            Connections=$(echo "$line" | sed -E 's/.*Connections ([0-9]+).*/\1/')
             ;;
         *)
             continue

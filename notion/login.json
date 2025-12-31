@@ -1,0 +1,30 @@
+{
+    "parent": {
+        "type": "database_id",
+        "database_id": "$database_id"
+    },
+    "icon": {
+        "emoji": "👋"
+    },
+    "properties": {
+        "viking": {
+            "title": [
+                {
+                    "text": {
+                        "content": "$viking"
+                    }
+                }
+            ]
+        },
+        "login": {
+            "date": {
+                "start": "$dtz"
+            }
+        },
+        "status": {
+            "select": {
+                "name": "online"
+            }
+        }
+    }
+}
