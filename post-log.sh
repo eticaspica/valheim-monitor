@@ -5,6 +5,7 @@ source .env
 set +a
 
 reg_login_ZDOID='s/.*: ([0-9]+):[0-9]+/\1/'
+reg_ZDOID_gen='s/.*: [0-9]+:([0-9]+)/\1/'
 reg_logout_ZDOID='s/.*zdo ([0-9]+):[0-9]+.*/\1/'
 reg_viking='s/.*from ([^ ]+).*/\1/'
 reg_conn='s/.*Connections ([0-9]+).*/\1/'
@@ -19,7 +20,18 @@ while read -r line; do
             method="POST"
             dtz=$(date -Iseconds)
             ZDOID=$(echo "$line" | sed -E "$reg_login_ZDOID")
+            gen=$(echo "$line" | sed -E "$reg_ZDOID_gen")
             viking=$(echo "$line" | sed -E "$reg_viking")
+
+            if [ "$ZDOID" == "0" ]; then
+                echo "Ignoring ZDOID 0 for viking $viking"
+                continue
+            fi
+
+            if [ "$gen" != "1" ]; then
+                echo "Ignoring non-persistent viking $viking with ZDOID $ZDOID and gen $gen"
+                continue
+            fi
 
             json_payload=$(
                 database_id="$notion_database_id" \
